@@ -1,44 +1,44 @@
 package fr.edjaz.graphql.braid.components;
 
+import java.io.Reader;
+import java.io.StringReader;
+import java.util.Map;
+
 import graphql.introspection.IntrospectionResultToSchema;
 import graphql.language.Document;
 import graphql.schema.idl.SchemaPrinter;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
-
-import java.io.Reader;
-import java.io.StringReader;
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
+import org.springframework.http.HttpEntity;
+import org.springframework.web.client.RestTemplate;
 
 
 @Slf4j
 public class RemoteIntrospection {
 
-    private final WebClient webClient;
+    private final RestTemplate webClient;
+    private final String url;
 
-    public RemoteIntrospection(String url, WebClient.Builder webClientConfigBuilder) {
-        this.webClient = webClientConfigBuilder.baseUrl(url).build();
+    public RemoteIntrospection(String url) {
+        this.webClient = new RestTemplate();
+        this.url = url;
+    }
+
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Data
+    public static class Query {
+        private String query;
     }
 
     public Reader get() {
-        try {
-            return webClient.post()
-                    .header(HttpHeaders.CONTENT_TYPE, org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
-                    .syncBody(Collections.singletonMap("query", introspectionQuery()))
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .flatMap(introspectionResult -> {
-                        Document schema = new IntrospectionResultToSchema().createSchemaDefinition((Map<String, Object>) introspectionResult.get("data"));
-                        String printedSchema = new SchemaPrinter().print(schema);
-                        return Mono.just(new StringReader(printedSchema));
-                    }).toFuture().get();
-        } catch (InterruptedException|ExecutionException e) {
-            throw new RuntimeException(e);
-        }
+        HttpEntity<Query> request = new HttpEntity<>(new Query(introspectionQuery()));
+        Map introspectionResult = webClient.postForObject(url, request, Map.class);
+        Document schema = new IntrospectionResultToSchema().createSchemaDefinition((Map<String, Object>) introspectionResult.get("data"));
+        String printedSchema = new SchemaPrinter().print(schema);
+        return new StringReader(printedSchema);
     }
 
     private String introspectionQuery() {

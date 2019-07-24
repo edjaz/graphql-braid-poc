@@ -1,34 +1,35 @@
 package fr.edjaz.graphql.braid.components;
 
-import com.atlassian.braid.source.GraphQLRemoteRetriever;
-import com.atlassian.braid.source.Query;
-import graphql.ExecutionInput;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.web.reactive.function.client.WebClient;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import com.atlassian.braid.source.GraphQLRemoteRetriever;
+import com.atlassian.braid.source.Query;
+import graphql.ExecutionInput;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.web.client.RestTemplate;
+
 public class RemoteRetriever<C> implements GraphQLRemoteRetriever<C> {
 
-    private final WebClient webClient;
+    private final RestTemplate webClient;
+    private final String url;
 
-    public RemoteRetriever(String url, WebClient.Builder webClientBuilder) {
-        this.webClient = webClientBuilder.baseUrl(url).build();
+
+    public RemoteRetriever(String url) {
+        this.webClient = new RestTemplate();
+        this.url = url;
     }
 
     @Override
     public CompletableFuture<Map<String, Object>> queryGraphQL(Query query, C c) {
-        return webClient.post()
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .syncBody(createBody(query))
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {
-                })
-                .toFuture();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map> request = new HttpEntity<>(createBody(query));
+        Map results = webClient.postForObject(url, request, Map.class);
+        return CompletableFuture.completedFuture(results);
     }
 
     private Map<String, Object> createBody(Query query) {

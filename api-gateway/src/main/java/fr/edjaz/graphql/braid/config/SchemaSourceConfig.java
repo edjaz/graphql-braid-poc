@@ -13,7 +13,6 @@ import fr.edjaz.graphql.braid.components.RemoteRetriever;
 import lombok.Data;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
 @Data
@@ -24,7 +23,7 @@ public class SchemaSourceConfig {
 
 
     @Bean
-    public SchemaSource userSchemaSource(WebClient.Builder webClientConfigBuilder) {
+    public SchemaSource userSchemaSource() {
 
         LinkArgument argument = LinkArgument.newLinkArgument()
                 .sourceName("bookId")
@@ -41,22 +40,20 @@ public class SchemaSourceConfig {
                         .topLevelQueryField("bookById")
                         .targetType("Book")
                         .linkArgument(argument)
-                        .build()),
-
-                webClientConfigBuilder);
+                        .build()));
     }
 
 
     @Bean
-    public SchemaSource bookSchemaSource(WebClient.Builder webClientConfigBuilder) {
-        return querySchemaSourceBuilder("books", BOOKS_SCHEMA_URL, Collections.emptyList(), webClientConfigBuilder);
+    public SchemaSource bookSchemaSource() {
+        return querySchemaSourceBuilder("books", BOOKS_SCHEMA_URL, Collections.emptyList());
     }
 
 
-    private SchemaSource querySchemaSourceBuilder(String namespace, String schemaUrl, List<Link> links, WebClient.Builder webClientConfigBuilder) {
+    private SchemaSource querySchemaSourceBuilder(String namespace, String schemaUrl, List<Link> links) {
         return QueryExecutorSchemaSource.builder().namespace(SchemaNamespace.of(namespace))
-                .schemaProvider(() -> new RemoteIntrospection(schemaUrl, webClientConfigBuilder).get())
-                .remoteRetriever(new RemoteRetriever<>(schemaUrl, webClientConfigBuilder))
+                .schemaProvider(() -> new RemoteIntrospection(schemaUrl).get())
+                .remoteRetriever(new RemoteRetriever<>(schemaUrl))
                 .links(links)
                 .build();
     }
